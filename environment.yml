@@ -1,0 +1,23 @@
+name: fantasy_baseball
+channels:
+  - anaconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.6 
+  - jupyter
+  - jupyterlab
+  - conda
+  - ipython
+  - ipykernel
+  - notebook
+  - pandas
+  - matplotlib
+  - seaborn
+  - plotly
+  - streamlit
+  - requests
+  - beautifulsoup4
+  - lxml
+  - pip
+

@@ -44,7 +44,7 @@ with st.expander("Expand if it takes too long"):
          Even in the worst case scenario this shouldn't take more than a couple of minutes though.
      """)
 # get data and years for the player
-dataframe, years = stats(url = url)
+dataframe, years = scraper(url = url)
 
 # user select a metric
 selected_metric = st.selectbox(
@@ -57,6 +57,22 @@ selected_years = st.multiselect(
      years,
      ['2019'])
 
+# user select some day of the week
+selected_days = st.multiselect(
+     'What are the years you would like to focus. You can select multiple and change later again.',
+     ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+     ['Friday', 'Saturday', 'Sunday'])
+
+day_dict = {'Monday': 0,
+            'Tuesday': 1,
+            'Wednesday':2,
+            'Thursday': 3,
+            'Friday':4,
+            'Saturday':5,
+            'Sunday':6}
+
+days = [day_dict.get(key) for key in selected_days]
+dataframe = dataframe[dataframe.dayofweek.isin(days)]
 # Create visualization
 fig = go.Figure()
 for year in selected_years:

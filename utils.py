@@ -1,11 +1,3 @@
-import streamlit as st
-import requests
-from bs4 import BeautifulSoup as bs
-import csv
-import pandas as pd
-from datetime import datetime
-import os
-
 # gather urls for each year
 def yearLinks(soup):
     """
@@ -43,62 +35,51 @@ def make_soup(url):
     soup = bs(response.content, features="html.parser")
     return soup
 
-# cache so that page would not refresh each time.
-@st.cache
-def stats(url):
+def cell_reader(cells):
+    row_data = []
+    for c in cells:
+        if c.text:
+            row_data.append(c.text)
+        else:
+            row_data.append(c.find('a')['href'])
+    return  row_data
+
+header = ['DATE','TEAM','home/away', 'OPPONENT','RESULT',
+        'AB','R' ,'H','2B','3B','HR','RBI','BB','K',
+        'SB','CS','SH','SF','HBP','AVG','SLG%','YTDOBP%',
+        'FPTS']
+new_header = header + ['date']
+
+def scraper(url):
     # to keep the list of years a player played in MLB
     years = []
-    # in the tables(html) the indexes of metrics
-    header_dictionary = {'AVG':-4, 'SLG':-3, 'OBP':-2 } 
-    field_names = ['player_name', 'date'] + ['AVG', 'SLG', 'OBP']
-    # we can add additional metrics later on
-    metrics = ['AVG', 'SLG', 'OBP']
-    # get player name and id
     player_name, player_id = player_info_from_url(url)
     # create an url for one of the player's pages.
     player_url = create_url('2021', player_name, player_id)
-    # create a temporary csv file. Not sure this is needed.
-    with open(f'{player_name}.csv', 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=field_names)
-        writer.writeheader()
         # create soup
-        soup = make_soup(player_url)
+    soup = make_soup(player_url)
         # create links for each year
-        links = yearLinks(soup)
-        for url in links:
-            # get the year
-            year = url.split('/')[-4]
-            # soup for a particular year data
-            soup = make_soup(url)
-            try:
-                # main table in the page
-                table = soup.find('table', 'data compact')
-                # append year in try so that if table is empty user don't see it
-                years.append(year)
-                # data kept in monthly - each month data is a table.
-                for month in table.findAll('tbody'):
-                    # we run through each row 
-                    for row in month.findAll('tr'):
-                        row_data = {}
-                        # get player data - for consistency
-                        row_data['player_name'] = player_name 
-                        # day of the game that data is coming from
-                        day = row.findAll('td')[0].text
-                        # add the year to date format
-                        date = datetime.strptime(day+ '/' + year, '%m/%d/%Y' )
-                        row_data['date'] = date
-                        # focus only on the metrics listed at the begining
-                        for s in metrics:
-                            s_index = header_dictionary[s]
-                            row_data[s] = float(row.findAll('td')[s_index].text)
-                        writer.writerow(row_data)
-            except:
-                print('No content for:', url)
-    # read the csv to a dataframe
-    df = pd.read_csv(f'{player_name}.csv',
-                         index_col = 'date', 
-                         parse_dates= True, 
-                         infer_datetime_format= True)
-    # delete the csv 
-    os.remove(f'{player_name}.csv')
+    links = yearLinks(soup)
+    body = []
+    for url in links:
+        # get the year
+        year = url.split('/')[-4]
+        # soup for a particular year data
+        soup = make_soup(url)
+        try:
+            years.append(year)
+            table = soup.find('table', 'data compact')
+            for month in table.findAll('tbody'):
+                for row in month.findAll('tr'):
+                    cells = row.findAll('td')
+                    row_data = cell_reader(cells)
+                    day = row_data[0]
+                    date = datetime.strptime(day+ '/' + year, '%m/%d/%Y' )
+                    row_data.append(date)
+                    body.append(row_data)
+        except:
+            print('No content for:', url)
+    df = pd.DataFrame(body, columns= new_header)
+    df['dayofweek'] = df.date.dt.dayofweek
+    df['Year'] = df.date.dt.year
     return df, years

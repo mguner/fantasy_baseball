@@ -1,3 +1,5 @@
+import pandas as pd
+from datetime import datetime
 # gather urls for each year
 def yearLinks(soup):
     """

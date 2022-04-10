@@ -1,3 +1,5 @@
+import requests
+from bs4 import BeautifulSoup as bs
 import pandas as pd
 from datetime import datetime
 # gather urls for each year
@@ -48,7 +50,7 @@ def cell_reader(cells):
 
 header = ['DATE','TEAM','home/away', 'OPPONENT','RESULT',
         'AB','R' ,'H','2B','3B','HR','RBI','BB','K',
-        'SB','CS','SH','SF','HBP','AVG','SLG%','YTDOBP%',
+        'SB','CS','SH','SF','HBP','AVG','SLG','YTDOBP',
         'FPTS']
 new_header = header + ['date']
 
@@ -82,6 +84,56 @@ def scraper(url):
         except:
             print('No content for:', url)
     df = pd.DataFrame(body, columns= new_header)
+    df.loc[:, 'AB': 'HBP'] = df.loc[:,'AB': 'HBP'].astype(int)
+    df.loc[:, 'AVG': 'FPTS'] = df.loc[:, 'AVG': 'FPTS'].astype(float)
     df['dayofweek'] = df.date.dt.dayofweek
     df['Year'] = df.date.dt.year
     return df, years
+
+# Hits divided by At Bats
+def daily_avg(df):
+    avg = df.H/df.AB
+    return avg.fillna(0)
+# Calculates avg cumulatively
+def cum_avg(df):
+    avg = df.H.cumsum()/df.AB.cumsum()
+    return avg.fillna(0)
+
+# Hits + Walks + Hit By Pitch) divided by (At-bats + Walks + Hit By Pitch + Sacrifices)
+def daily_obp(df):
+    numerator = df.H + df.BB + df.HBP
+    denom = df.AB + df.BB + df.HBP + df.SF
+    return (numerator/denom).fillna(0)
+def cum_obp(df):
+    num = (df.H + df.BB + df.HBP).cumsum()
+    denom = (df.AB + df.BB + df.HBP + df.SF).cumsum()
+    return (num/denom).fillna(0)
+
+# Total number of bases divided by At-bats
+def daily_slg(df):
+    first_base = df.H - (df['2B'] + df['3B'] + df['HR'])
+    num = first_base + 2 * df['2B'] + 3*df['3B'] + 4*df['HR']
+    return (num/df.AB).fillna(0)
+def cum_slg(df):
+    first_base = df.H - (df['2B'] + df['3B'] + df['HR'])
+    num = first_base.cumsum() + 2 * df['2B'].cumsum() + 3*df['3B'].cumsum() + 4*df['HR'].cumsum()
+    return (num/df.AB.cumsum()).fillna(0)
+
+
+# returns the final version of the data
+def cbs_data(url):
+    df, years = scraper(url)
+    df['daily_avg'] = daily_avg(df)
+    df['daily_slg'] = daily_slg(df)
+    df['daily_obp'] = daily_obp(df)
+    return df, years
+
+def select_metric_data(df, selected_metric):
+    if selected_metric == 'AVG':
+        return cum_avg(df)
+    elif selected_metric == 'SLG':
+        return cum_slg(df)
+    else:
+        return cum_obp(df)
+
+    

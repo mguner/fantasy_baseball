@@ -1,13 +1,10 @@
 import streamlit as st
-import requests
 from bs4 import BeautifulSoup as bs
-import re
-import csv
 import pandas as pd
 import datetime
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import numpy as np
-import os
 from utils import *
 
 # title of the site
@@ -59,7 +56,7 @@ selected_years = st.multiselect(
 
 # user select some day of the week
 selected_days = st.multiselect(
-     'What are the years you would like to focus. You can select multiple and change later again.',
+     'What are the days you would like to focus. You can select multiple and change later again.',
      ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
      ['Friday', 'Saturday', 'Sunday'])
 
@@ -73,17 +70,19 @@ day_dict = {'Monday': 0,
 
 days = [day_dict.get(key) for key in selected_days]
 dataframe = dataframe[dataframe.dayofweek.isin(days)]
+dataframe.index = dataframe.date
 # Create visualization
+
 fig = go.Figure()
 for year in selected_years:
     year_data_length = dataframe.loc[year].shape[0]
     x = np.arange(year_data_length)
-    year_data = dataframe.loc[year, selected_metric]
+    year_data = select_metric_data(dataframe.loc[year], selected_metric)
     fig.add_trace(go.Scatter(x=x, y=year_data,
                     mode='lines',
                     name= year + " " + selected_metric))
 
 with st.container():
-    player_name = dataframe.player_name.unique()[0]
-    st.write(f'Player: {player_name}')
+#     player_name = dataframe.player_name.unique()[0]
+#     st.write(f'Player: {player_name}')
     st.plotly_chart(fig)
